@@ -63,10 +63,18 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-        success: {
-          DEFAULT: '#10B981',
-          foreground: '#FFFFFF'
-        }
+				success: {
+					DEFAULT: '#10B981',
+					foreground: '#FFFFFF'
+				},
+				warning: {
+					DEFAULT: '#FFDF02', // Your secondary color as warning
+					foreground: '#1F2937'
+				},
+				info: {
+					DEFAULT: '#0EB4BF', // Your primary color as info
+					foreground: '#FFFFFF'
+				}
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
