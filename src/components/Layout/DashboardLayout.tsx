@@ -1,104 +1,200 @@
-
 import React, { useState } from "react";
-import { useNavigate, Link, Outlet } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { Outlet, Link, useLocation } from "react-router-dom";
 import {
-  ChevronLeft,
-  ChevronRight,
   LayoutDashboard,
+  MapPin,
+  AlertOctagon,
+  Coffee,
   Users,
   UtensilsCrossed,
-  Home,
-  AlignLeft,
+  CalendarDays,
+  LucideIcon,
+  Menu,
   LogOut,
-  FileText,
-  MapPin,
-  Utensils,
-  AlertCircle,
-  Calendar
+  ChevronDown,
+  SunMoon,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useAuth } from "@/contexts/AuthContext";
+import { useMobile } from "@/hooks/use-mobile";
+import { useTheme } from "@/components/ui/theme-provider";
+import DatabaseStatus from "@/components/DatabaseStatus";
+
+interface NavLink {
+  name: string;
+  path: string;
+  icon: LucideIcon;
+}
+
+interface NavItemProps {
+  link: NavLink;
+  sidebarOpen: boolean;
+}
+
+const NavItem: React.FC<NavItemProps> = ({ link, sidebarOpen }) => {
+  const location = useLocation();
+  const isActive = location.pathname.startsWith(link.path);
+
+  return (
+    <li>
+      <Link
+        to={link.path}
+        className={`flex items-center space-x-2 p-2 rounded-md hover:bg-accent hover:text-accent-foreground ${
+          isActive ? "bg-accent text-accent-foreground" : ""
+        }`}
+      >
+        <link.icon className="h-4 w-4" />
+        {sidebarOpen && <span>{link.name}</span>}
+      </Link>
+    </li>
+  );
+};
 
 const DashboardLayout = () => {
   const { logout, user } = useAuth();
-  const [collapsed, setCollapsed] = useState(false);
-  const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
+  const isMobile = useMobile();
+  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
 
-  const menuItems = [
-    { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-    { icon: Utensils, label: "Restaurants", path: "/restaurants" },
-    { icon: UtensilsCrossed, label: "Meals", path: "/meals" },
-    { icon: AlignLeft, label: "Meal Types", path: "/meal-types" },
-    { icon: AlertCircle, label: "Allergens", path: "/allergens" },
-    { icon: FileText, label: "Cuisines", path: "/cuisines" },
-    { icon: Users, label: "Customers", path: "/customers" },
-    { icon: Calendar, label: "Meal Planning", path: "/meal-planning" },
-    { icon: MapPin, label: "Addresses", path: "/addresses" },
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  };
+
+  const routes: NavLink[] = [
+    { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+    { name: "Addresses", path: "/dashboard/addresses", icon: MapPin },
+    { name: "Allergens", path: "/dashboard/allergens", icon: AlertOctagon },
+    { name: "Cuisines", path: "/dashboard/cuisines", icon: Coffee },
+    { name: "Customers", path: "/dashboard/customers", icon: Users },
+    { name: "Meals", path: "/dashboard/meals", icon: UtensilsCrossed },
+    { name: "Meal Planning", path: "/dashboard/meal-planning", icon: CalendarDays },
+    { name: "Meal Types", path: "/dashboard/meal-types", icon: Coffee },
+    { name: "Restaurants", path: "/dashboard/restaurants", icon: UtensilsCrossed },
   ];
 
-  return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          "bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 flex flex-col",
-          collapsed ? "w-16" : "w-64"
-        )}
-      >
-        <div className="p-4 flex items-center justify-between h-16 border-b border-sidebar-border">
-          <h1 className={cn("font-semibold truncate", collapsed ? "hidden" : "block")}>
-            Restaurant Admin
-          </h1>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setCollapsed(!collapsed)}
-            className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-          >
-            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-          </Button>
-        </div>
-        <nav className="flex-1 overflow-y-auto py-4">
-          <ul className="space-y-2 px-2">
-            {menuItems.map((item) => (
-              <li key={item.path}>
-                <Link
-                  to={item.path}
-                  className="flex items-center p-2 rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-                >
-                  <item.icon className="h-5 w-5" />
-                  <span className={cn("ml-3 truncate", collapsed ? "hidden" : "block")}>
-                    {item.label}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <div className="p-4 border-t border-sidebar-border">
-          <Button
-            variant="ghost"
-            onClick={logout}
-            className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-          >
-            <LogOut className="h-5 w-5" />
-            <span className={cn("ml-3", collapsed ? "hidden" : "block")}>Logout</span>
-          </Button>
-        </div>
-      </aside>
+  const location = useLocation();
+  const locationPath = location.pathname;
 
-      {/* Main content */}
+  return (
+    <div className="flex h-screen bg-background">
+      {/* Desktop Sidebar */}
+      {!isMobile && (
+        <aside
+          className={`${
+            sidebarOpen ? "w-64" : "w-20"
+          } flex-shrink-0 border-r border-border transition-all duration-300 ease-in-out`}
+        >
+          <ScrollArea className="py-4 h-full">
+            <div className="space-y-4">
+              <div className="px-3 py-2">
+                <Link to="/dashboard" className="font-bold flex items-center">
+                  <LayoutDashboard className="mr-2 h-4 w-4" />
+                  {sidebarOpen && <span>Dashboard</span>}
+                </Link>
+              </div>
+              <Separator />
+              <div className="px-3 py-2">
+                <ul>
+                  {routes.map((route) => (
+                    <NavItem
+                      key={route.path}
+                      link={route}
+                      sidebarOpen={sidebarOpen}
+                    />
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </ScrollArea>
+        </aside>
+      )}
+
+      {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="h-16 border-b bg-background flex items-center px-6">
-          <div className="flex-1">
-            <h2 className="text-xl font-semibold">Welcome, {user?.username}</h2>
+        {/* Navbar */}
+        <header className="flex h-16 items-center justify-between border-b border-border px-6">
+          <div className="flex items-center space-x-4">
+            {isMobile ? (
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-64 p-0">
+                  <ScrollArea className="py-4 h-full">
+                    <div className="space-y-4">
+                      <div className="px-3 py-2">
+                        <Link to="/dashboard" className="font-bold flex items-center">
+                          <LayoutDashboard className="mr-2 h-4 w-4" />
+                          <span>Dashboard</span>
+                        </Link>
+                      </div>
+                      <Separator />
+                      <div className="px-3 py-2">
+                        <ul>
+                          {routes.map((route) => (
+                            <NavItem key={route.path} link={route} sidebarOpen={true} />
+                          ))}
+                        </ul>
+                      </div>
+                      <Separator />
+                      <div className="px-3 py-2">
+                        <Button variant="outline" className="w-full" onClick={logout}>
+                          Logout
+                        </Button>
+                      </div>
+                    </div>
+                  </ScrollArea>
+                </SheetContent>
+              </Sheet>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            )}
+            <h1 className="text-xl font-semibold">Restaurant Admin Dashboard</h1>
+          </div>
+          <div className="flex items-center space-x-4">
+            <DatabaseStatus />
+            <Button variant="ghost" size="icon" onClick={toggleTheme}>
+              <SunMoon className="h-5 w-5" />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center space-x-2">
+                  <span>{user?.username}</span>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={logout} className="text-destructive">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
-        {/* Page content */}
+        {/* Page Content */}
         <main className="flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>

@@ -1,76 +1,77 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "@/components/ui/theme-provider";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { DatabaseProvider } from "@/contexts/DatabaseContext";
 
-import NotFound from "./pages/NotFound";
-import LoginPage from "./pages/LoginPage";
-import DashboardLayout from "./components/Layout/DashboardLayout";
-import Dashboard from "./pages/Dashboard";
-import Restaurants from "./pages/Restaurants";
-import Meals from "./pages/Meals";
-import MealTypes from "./pages/MealTypes";
-import Allergens from "./pages/Allergens";
-import Cuisines from "./pages/Cuisines";
-import Customers from "./pages/Customers";
-import Addresses from "./pages/Addresses";
-import MealPlannings from "./pages/MealPlanning";
+import DashboardLayout from "@/components/Layout/DashboardLayout";
+import LoginPage from "@/pages/LoginPage";
+import Dashboard from "@/pages/Dashboard";
+import Addresses from "@/pages/Addresses";
+import Allergens from "@/pages/Allergens";
+import Cuisines from "@/pages/Cuisines";
+import Customers from "@/pages/Customers";
+import Meals from "@/pages/Meals";
+import MealPlanning from "@/pages/MealPlanning";
+import MealTypes from "@/pages/MealTypes";
+import Restaurants from "@/pages/Restaurants";
+import NotFound from "@/pages/NotFound";
+import Index from "@/pages/Index";
 
-const queryClient = new QueryClient();
+import "./App.css";
 
-// Protected Route component
+// Authentication guard component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = useAuth();
+  // Check if user is authenticated from localStorage
+  const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
   
   if (!isAuthenticated) {
+    // If not authenticated, redirect to login page
     return <Navigate to="/login" replace />;
   }
   
   return <>{children}</>;
 };
 
-const AppRoutes = () => {
+function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      
-      <Route path="/" element={
-        <ProtectedRoute>
-          <DashboardLayout />
-        </ProtectedRoute>
-      }>
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="restaurants" element={<Restaurants />} />
-        <Route path="meals" element={<Meals />} />
-        <Route path="meal-types" element={<MealTypes />} />
-        <Route path="allergens" element={<Allergens />} />
-        <Route path="cuisines" element={<Cuisines />} />
-        <Route path="customers" element={<Customers />} />
-        <Route path="addresses" element={<Addresses />} />
-        <Route path="meal-planning" element={<MealPlannings />} />
-      </Route>
-      
-      <Route path="*" element={<NotFound />} />
-    </Routes>
-  );
-};
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
+    <ThemeProvider defaultTheme="light" storageKey="ui-theme">
+      <Router>
         <AuthProvider>
-          <AppRoutes />
+          <DatabaseProvider>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<LoginPage />} />
+              
+              {/* Protected routes */}
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <DashboardLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<Dashboard />} />
+                <Route path="addresses" element={<Addresses />} />
+                <Route path="allergens" element={<Allergens />} />
+                <Route path="cuisines" element={<Cuisines />} />
+                <Route path="customers" element={<Customers />} />
+                <Route path="meals" element={<Meals />} />
+                <Route path="meal-planning" element={<MealPlanning />} />
+                <Route path="meal-types" element={<MealTypes />} />
+                <Route path="restaurants" element={<Restaurants />} />
+              </Route>
+              
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <Toaster position="top-right" />
+          </DatabaseProvider>
         </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+      </Router>
+    </ThemeProvider>
+  );
+}
 
 export default App;
