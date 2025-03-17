@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +12,7 @@ import { PlusCircle, Pencil, Trash2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-interface Column<T> {
+export interface Column<T> {
   header: string;
   accessor: keyof T | ((item: T) => React.ReactNode);
   cell?: (item: T) => React.ReactNode;
@@ -52,6 +51,18 @@ export function DataTable<T>({
       return String(value).toLowerCase().includes(query);
     });
   });
+
+  const renderCellContent = (item: T, column: Column<T>) => {
+    if (column.cell) {
+      return column.cell(item);
+    }
+    
+    if (typeof column.accessor === "function") {
+      return column.accessor(item);
+    }
+    
+    return String(item[column.accessor] || "");
+  };
 
   return (
     <div className="space-y-4">
@@ -105,11 +116,7 @@ export function DataTable<T>({
                 <TableRow key={String(item[idField])}>
                   {columns.map((column, i) => (
                     <TableCell key={i}>
-                      {column.cell
-                        ? column.cell(item)
-                        : typeof column.accessor === "function"
-                        ? column.accessor(item)
-                        : String(item[column.accessor] || "")}
+                      {renderCellContent(item, column)}
                     </TableCell>
                   ))}
                   {(onEdit || onDelete) && (

@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/components/ui/theme-provider";
 import DatabaseStatus from "@/components/DatabaseStatus";
 
@@ -64,7 +64,7 @@ const NavItem: React.FC<NavItemProps> = ({ link, sidebarOpen }) => {
 const DashboardLayout = () => {
   const { logout, user } = useAuth();
   const { theme, setTheme } = useTheme();
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
 
   const toggleTheme = () => {
@@ -88,7 +88,6 @@ const DashboardLayout = () => {
 
   return (
     <div className="flex h-screen bg-background">
-      {/* Desktop Sidebar */}
       {!isMobile && (
         <aside
           className={`${
@@ -120,9 +119,7 @@ const DashboardLayout = () => {
         </aside>
       )}
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Navbar */}
         <header className="flex h-16 items-center justify-between border-b border-border px-6">
           <div className="flex items-center space-x-4">
             {isMobile ? (
@@ -194,7 +191,6 @@ const DashboardLayout = () => {
           </div>
         </header>
 
-        {/* Page Content */}
         <main className="flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>
