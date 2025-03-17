@@ -8,3 +8,11 @@ import { type ThemeProviderProps } from "next-themes/dist/types"
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
   return <NextThemesProvider {...props}>{children}</NextThemesProvider>
 }
+
+export const useTheme = () => {
+  const { theme, setTheme } = React.useContext(
+    // @ts-ignore - This context does exist in next-themes
+    React.createContext({ theme: 'light', setTheme: () => {} })
+  )
+  return { theme, setTheme }
+}

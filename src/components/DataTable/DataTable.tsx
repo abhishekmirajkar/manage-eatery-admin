@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 export interface Column<T> {
   header: string;
-  accessor: keyof T | ((item: T) => React.ReactNode);
+  accessor: keyof T | string | ((item: T) => React.ReactNode);
   cell?: (item: T) => React.ReactNode;
 }
 
@@ -61,7 +62,13 @@ export function DataTable<T>({
       return column.accessor(item);
     }
     
-    return String(item[column.accessor] || "");
+    // If accessor is a string but not a key of T, use it as a fallback
+    const accessor = column.accessor as string;
+    if (typeof accessor === "string") {
+      return String((item as any)[accessor] || "");
+    }
+    
+    return "";
   };
 
   return (
