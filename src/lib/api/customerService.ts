@@ -42,12 +42,11 @@ interface SignupResponse {
 
 class CustomerService {
   private getAuthToken(): string | null {
-    // Try to get token from localStorage if AuthContext is not available
     const storedTokens = localStorage.getItem("authTokens");
     if (storedTokens) {
       try {
         const tokens = JSON.parse(storedTokens);
-        return tokens.access_token;
+        return tokens.access_token || null;
       } catch (error) {
         console.error("Error parsing stored tokens:", error);
         return null;
@@ -74,8 +73,18 @@ class CustomerService {
 
       if (response.ok) {
         const data = await response.json();
-        if (data.success && data.data) {
-          localStorage.setItem("authTokens", JSON.stringify(data.data.tokens));
+        if (data.success && data.data && data.data.access_token) {
+          // Get existing tokens to preserve refresh_token
+          const existingTokens = JSON.parse(storedTokens);
+          
+          // Update with new access token, keep existing refresh token
+          const updatedTokens = {
+            access_token: data.data.access_token,
+            refresh_token: existingTokens.refresh_token,
+            expires_in: data.data.expires_in
+          };
+          
+          localStorage.setItem("authTokens", JSON.stringify(updatedTokens));
           return true;
         }
       }
@@ -100,10 +109,27 @@ class CustomerService {
     isRetry = false
   ): Promise<ApiResponse<T>> {
     try {
-      const token = this.getAuthToken();
+      let token = this.getAuthToken();
+      
+      // If no token and this isn't a retry, try to refresh first
+      if (!token && !isRetry) {
+        console.log('No token available in customerService, attempting refresh...');
+        const refreshSuccess = await this.refreshTokens();
+        if (refreshSuccess) {
+          token = this.getAuthToken();
+        } else {
+          return {
+            success: false,
+            error: 'Authentication required. Please log in again.'
+          };
+        }
+      }
       
       if (!token) {
-        throw new Error('Token unavailable');
+        return {
+          success: false,
+          error: 'Authentication required. Please log in again.'
+        };
       }
 
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {

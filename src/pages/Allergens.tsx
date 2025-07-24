@@ -1,20 +1,51 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { DataTable } from "@/components/DataTable/DataTable";
 import { FormModal } from "@/components/DataTable/FormModal";
 import { Allergen } from "@/types/models";
-import { mockAllergens } from "@/lib/mockData";
+import { allergenAPI, AllergenCreateData, extractResponseData } from "@/lib/api/apiService";
 import InputWithLabel from "@/components/ui/input-with-label";
 import { toast } from "sonner";
 
 const Allergens = () => {
-  const [allergens, setAllergens] = useState<Allergen[]>(mockAllergens);
+  const [allergens, setAllergens] = useState<Allergen[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAllergen, setEditingAllergen] = useState<Allergen | null>(null);
-  const [formData, setFormData] = useState<Partial<Allergen>>({
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [formData, setFormData] = useState<Partial<AllergenCreateData>>({
     name: "",
     description: "",
   });
+
+  // Load allergens on component mount
+  useEffect(() => {
+    loadAllergens();
+  }, []);
+
+  const loadAllergens = async () => {
+    setLoading(true);
+    try {
+      const response = await allergenAPI.getAll();
+      
+      if (response.success && response.data) {
+        const allergenData = extractResponseData<Allergen[]>(response.data);
+        setAllergens(allergenData);
+      } else {
+        // Handle specific authentication errors
+        if (response.error?.includes('Authentication failed')) {
+          toast.error("Session expired. Please log in again.");
+          return; // Don't show additional error toast
+        }
+        toast.error(response.error || "Failed to load allergens");
+      }
+    } catch (error) {
+      toast.error("Failed to load allergens");
+      console.error("Error loading allergens:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const columns = [
     { header: "Name", accessor: "name" },
@@ -39,35 +70,62 @@ const Allergens = () => {
     setIsModalOpen(true);
   };
 
-  const handleDelete = (allergen: Allergen) => {
-    setAllergens(allergens.filter((a) => a.id !== allergen.id));
-    toast.success(`Deleted ${allergen.name}`);
+  const handleDelete = async (allergen: Allergen) => {
+    try {
+      const response = await allergenAPI.delete(allergen.id);
+      if (response.success) {
+        setAllergens(allergens.filter((a) => a.id !== allergen.id));
+        toast.success(`Deleted ${allergen.name}`);
+      } else {
+        toast.error(response.error || "Failed to delete allergen");
+      }
+    } catch (error) {
+      toast.error("Failed to delete allergen");
+      console.error("Error deleting allergen:", error);
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
     
-    if (editingAllergen) {
-      // Update existing allergen
-      setAllergens(
-        allergens.map((a) =>
-          a.id === editingAllergen.id
-            ? { ...a, ...formData }
-            : a
-        )
-      );
-      toast.success(`Updated ${formData.name}`);
-    } else {
-      // Create new allergen
-      const newAllergen: Allergen = {
-        id: `alg${allergens.length + 1}`,
-        ...formData as Allergen
-      };
-      setAllergens([...allergens, newAllergen]);
-      toast.success(`Added ${formData.name}`);
+    try {
+      if (editingAllergen) {
+        // Update existing allergen
+        const response = await allergenAPI.update(editingAllergen.id, formData);
+        if (response.success && response.data) {
+          setAllergens(
+            allergens.map((a) =>
+              a.id === editingAllergen.id ? response.data! : a
+            )
+          );
+          toast.success(`Updated ${formData.name}`);
+          setIsModalOpen(false);
+        } else {
+          toast.error(response.error || "Failed to update allergen");
+        }
+      } else {
+        // Create new allergen
+        const createData: AllergenCreateData = {
+          name: formData.name!,
+          description: formData.description,
+        };
+        
+        const response = await allergenAPI.create(createData);
+        if (response.success && response.data) {
+          setAllergens([...allergens, response.data]);
+          toast.success(`Added ${formData.name}`);
+          setIsModalOpen(false);
+        } else {
+          toast.error(response.error || "Failed to create allergen");
+        }
+      }
+    } catch (error) {
+      toast.error("An error occurred while saving the allergen");
+      console.error("Error saving allergen:", error);
+    } finally {
+      setSubmitting(false);
     }
-    
-    setIsModalOpen(false);
   };
 
   const handleInputChange = (
@@ -76,6 +134,14 @@ const Allergens = () => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg">Loading allergens...</div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -93,6 +159,7 @@ const Allergens = () => {
         onClose={() => setIsModalOpen(false)}
         title={editingAllergen ? "Edit Allergen" : "Add New Allergen"}
         onSubmit={handleSubmit}
+        isLoading={submitting}
       >
         <div className="grid grid-cols-1 gap-4 py-4">
           <InputWithLabel

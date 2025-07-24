@@ -28,10 +28,11 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { authAPI } from "@/lib/api/apiService";
 import { useTheme } from "@/components/ui/theme-provider";
 import DatabaseStatus from "@/components/DatabaseStatus";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002';
+// Admin check now uses authAPI with automatic token refresh
 
 interface NavLink {
   name: string;
@@ -71,7 +72,7 @@ const DashboardLayout = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminCheckLoading, setAdminCheckLoading] = useState(true);
 
-  // Check admin role via backend API
+  // Check admin role via backend API with automatic token refresh
   React.useEffect(() => {
     const checkAdminRole = async () => {
       if (!user) {
@@ -81,27 +82,18 @@ const DashboardLayout = () => {
       }
 
       try {
-        const token = getAccessToken();
-        if (!token) {
-          setIsAdmin(false);
-          setAdminCheckLoading(false);
-          return;
-        }
-
-        const response = await fetch(`${API_BASE_URL}/api/auth/check-admin`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        const data = await response.json();
+        console.log('Checking admin role using authAPI...');
+        const response = await authAPI.checkAdmin();
         
-        if (response.ok && data.success) {
-          setIsAdmin(data.is_admin || false);
+        if (response.success && response.data) {
+          console.log('Admin check successful:', response.data);
+          setIsAdmin(response.data.is_admin || false);
         } else {
-          console.error('Admin check failed:', data.error);
+          console.error('Admin check failed:', response.error);
+          // Don't show error for auth failures as they're handled by the API service
+          if (!response.error?.includes('Authentication')) {
+            console.error('Non-auth admin check error:', response.error);
+          }
           setIsAdmin(false);
         }
       } catch (error) {
@@ -113,7 +105,7 @@ const DashboardLayout = () => {
     };
 
     checkAdminRole();
-  }, [user, getAccessToken]);
+  }, [user]);
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
