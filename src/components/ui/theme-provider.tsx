@@ -9,10 +9,5 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
   return <NextThemesProvider {...props}>{children}</NextThemesProvider>
 }
 
-export const useTheme = () => {
-  const { theme, setTheme } = React.useContext(
-    // @ts-ignore - This context does exist in next-themes
-    React.createContext({ theme: 'light', setTheme: () => {} })
-  )
-  return { theme, setTheme }
-}
+// Re-export useTheme from next-themes
+export { useTheme } from "next-themes"

@@ -31,6 +31,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useTheme } from "@/components/ui/theme-provider";
 import DatabaseStatus from "@/components/DatabaseStatus";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002';
+
 interface NavLink {
   name: string;
   path: string;
@@ -62,10 +64,56 @@ const NavItem: React.FC<NavItemProps> = ({ link, sidebarOpen }) => {
 };
 
 const DashboardLayout = () => {
-  const { logout, user } = useAuth();
+  const { logout, user, getAccessToken } = useAuth();
   const { theme, setTheme } = useTheme();
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminCheckLoading, setAdminCheckLoading] = useState(true);
+
+  // Check admin role via backend API
+  React.useEffect(() => {
+    const checkAdminRole = async () => {
+      if (!user) {
+        setIsAdmin(false);
+        setAdminCheckLoading(false);
+        return;
+      }
+
+      try {
+        const token = getAccessToken();
+        if (!token) {
+          setIsAdmin(false);
+          setAdminCheckLoading(false);
+          return;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/api/auth/check-admin`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          setIsAdmin(data.is_admin || false);
+        } else {
+          console.error('Admin check failed:', data.error);
+          setIsAdmin(false);
+        }
+      } catch (error) {
+        console.error('Error checking admin role:', error);
+        setIsAdmin(false);
+      } finally {
+        setAdminCheckLoading(false);
+      }
+    };
+
+    checkAdminRole();
+  }, [user, getAccessToken]);
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
@@ -76,7 +124,8 @@ const DashboardLayout = () => {
     { name: "Addresses", path: "/dashboard/addresses", icon: MapPin },
     { name: "Allergens", path: "/dashboard/allergens", icon: AlertOctagon },
     { name: "Cuisines", path: "/dashboard/cuisines", icon: Coffee },
-    { name: "Customers", path: "/dashboard/customers", icon: Users },
+    // Only add Customers tab if backend confirms user is admin
+    ...(isAdmin ? [{ name: "Customers", path: "/dashboard/customers", icon: Users }] : []),
     { name: "Meals", path: "/dashboard/meals", icon: UtensilsCrossed },
     { name: "Meal Planning", path: "/dashboard/meal-planning", icon: CalendarDays },
     { name: "Meal Types", path: "/dashboard/meal-types", icon: Coffee },
@@ -175,7 +224,7 @@ const DashboardLayout = () => {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center space-x-2">
-                  <span>{user?.username}</span>
+                  <span>{user ? `${user.first_name} ${user.last_name}` : 'User'}</span>
                   <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
