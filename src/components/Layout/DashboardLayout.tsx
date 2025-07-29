@@ -82,18 +82,12 @@ const DashboardLayout = () => {
       }
 
       try {
-        console.log('Checking admin role using authAPI...');
         const response = await authAPI.checkAdmin();
         
         if (response.success && response.data) {
-          console.log('Admin check successful:', response.data);
           setIsAdmin(response.data.is_admin || false);
         } else {
           console.error('Admin check failed:', response.error);
-          // Don't show error for auth failures as they're handled by the API service
-          if (!response.error?.includes('Authentication')) {
-            console.error('Non-auth admin check error:', response.error);
-          }
           setIsAdmin(false);
         }
       } catch (error) {

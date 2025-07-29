@@ -246,6 +246,15 @@ const makeRequest = async <T>(
       };
     }
 
+    // If response has success property but no data property, wrap the non-success fields in data
+    if (data && data.hasOwnProperty('success') && !data.hasOwnProperty('data')) {
+      const { success, ...otherFields } = data;
+      return {
+        success: success,
+        data: otherFields
+      };
+    }
+
     // If response already has success/data structure, return as is
     return data;
   } catch (error) {
@@ -451,5 +460,41 @@ export const mealAPI = {
 export const authAPI = {
   checkAdmin: async (): Promise<ApiResponse<{ is_admin: boolean }>> => {
     return makeRequest<{ is_admin: boolean }>('/api/auth/check-admin');
+  },
+};
+
+// MEAL SCHEDULE API
+export interface MealScheduleEntry {
+  date: string;
+  meal_1: string;
+  meal_2: string;
+  meal_3: string;
+  meal_4: string;
+  meal_5: string;
+}
+
+export const mealScheduleAPI = {
+  scheduleMultipleMeals: async (mealSchedules: MealScheduleEntry[]): Promise<ApiResponse<{ scheduled_count: number }>> => {
+    return makeRequest<{ scheduled_count: number }>('/api/schedule_meals', {
+      method: 'POST',
+      body: JSON.stringify({ meal_schedules: mealSchedules }),
+    });
+  },
+  
+  getMealSchedule: async (startDate?: string, endDate?: string): Promise<ApiResponse<MealScheduleEntry[]>> => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    
+    const queryString = params.toString();
+    const endpoint = queryString ? `/api/meal_schedule?${queryString}` : '/api/meal_schedule';
+    
+    return makeRequest<MealScheduleEntry[]>(endpoint);
+  },
+  
+  deleteMealSchedule: async (date: string): Promise<ApiResponse<{ message: string }>> => {
+    return makeRequest<{ message: string }>(`/api/meal_schedule/${date}`, {
+      method: 'DELETE',
+    });
   },
 }; 
