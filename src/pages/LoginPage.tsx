@@ -58,7 +58,6 @@ const LoginPage = () => {
       });
 
       const data = await response.json();
-      console.log("Backend response:", data); // Debug log
 
       if (response.ok && data.success) {
         // Handle the response structure: { success: true, data: { token: "...", email: "..." } }

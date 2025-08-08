@@ -73,7 +73,6 @@ const getAuthTokenWithRefresh = async (): Promise<string | null> => {
 
     // Check if token is expired or close to expiring
     if (isTokenExpired()) {
-      console.log('Token is expired or close to expiring, attempting refresh...');
       const refreshSuccess = await refreshTokens();
       if (refreshSuccess) {
         // Get the refreshed token
@@ -97,7 +96,6 @@ const getAuthTokenWithRefresh = async (): Promise<string | null> => {
 const refreshTokens = async (): Promise<boolean> => {
   const storedTokens = localStorage.getItem("authTokens");
   if (!storedTokens) {
-    console.log('No tokens found in localStorage for refresh');
     return false;
   }
 
@@ -105,13 +103,10 @@ const refreshTokens = async (): Promise<boolean> => {
     const tokens = JSON.parse(storedTokens);
     
     if (!tokens.refresh_token) {
-      console.log('No refresh token available');
       localStorage.removeItem("authTokens");
       localStorage.removeItem("user");
       return false;
     }
-
-    console.log('Attempting to refresh token...');
     const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
       method: 'POST',
       headers: {
@@ -122,7 +117,6 @@ const refreshTokens = async (): Promise<boolean> => {
 
     if (response.ok) {
       const data = await response.json();
-      console.log("Refresh token response:", data);
       
       if (data.success && data.data && data.data.access_token) {
         // Update with new access token, keep existing refresh token
@@ -133,19 +127,11 @@ const refreshTokens = async (): Promise<boolean> => {
         };
         
         localStorage.setItem("authTokens", JSON.stringify(updatedTokens));
-        console.log("Token refresh successful, updated localStorage");
         return true;
-      } else {
-        console.log('Invalid refresh response structure:', data);
       }
-    } else {
-      console.log('Refresh request failed with status:', response.status);
-      const errorData = await response.json().catch(() => null);
-      console.log('Refresh error response:', errorData);
     }
     
     // If refresh fails, clear stored tokens
-    console.log('Token refresh failed, clearing stored tokens');
     localStorage.removeItem("authTokens");
     localStorage.removeItem("user");
     
@@ -179,13 +165,10 @@ const makeRequest = async <T>(
     
     // If no token is available and this isn't a retry, try to refresh again
     if (!token && !isRetry) {
-      console.log('No token available after initial refresh, attempting manual refresh...');
       const refreshSuccess = await refreshTokens();
       if (refreshSuccess) {
         token = getAuthToken();
-        console.log('Manual token refresh successful, got new token');
       } else {
-        console.log('Token refresh failed, authentication required');
         return {
           success: false,
           error: 'Authentication required. Please log in again.'
@@ -195,7 +178,6 @@ const makeRequest = async <T>(
     
     // If still no token after refresh attempt, return error
     if (!token) {
-      console.log('No token available after refresh attempts');
       return {
         success: false,
         error: 'Authentication required. Please log in again.'
@@ -213,14 +195,9 @@ const makeRequest = async <T>(
 
     // Handle 401 (Unauthorized) - try to refresh token
     if (response.status === 401 && !isRetry) {
-      console.log('Token expired, attempting to refresh...');
-      console.log('Current token before refresh:', token?.substring(0, 50) + '...');
       const refreshSuccess = await refreshTokens();
       
       if (refreshSuccess) {
-        console.log('Token refresh successful, retrying request...');
-        const newToken = getAuthToken();
-        console.log('New token after refresh:', newToken?.substring(0, 50) + '...');
         // Retry the original request with new token
         return makeRequest<T>(endpoint, options, true);
       } else {
@@ -435,10 +412,59 @@ export interface MealCreateData {
 
 export const mealAPI = {
   create: async (data: MealCreateData): Promise<ApiResponse<Meal>> => {
-    return makeRequest<Meal>('/api/meals', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    // Fetch full objects for allergens, meal types, and cuisine
+    try {
+      const [allergensResponse, mealTypesResponse, cuisinesResponse] = await Promise.all([
+        allergenAPI.getAll(),
+        mealTypeAPI.getAll(),
+        cuisineAPI.getAll(),
+      ]);
+
+      if (!allergensResponse.success || !mealTypesResponse.success || !cuisinesResponse.success) {
+        return {
+          success: false,
+          message: 'Failed to fetch reference data for meal creation',
+          data: null,
+          error: 'Failed to fetch allergens, meal types, or cuisines'
+        };
+      }
+
+      // Filter and get full objects based on IDs
+      const allergenObjects = allergensResponse.data.filter(allergen => 
+        data.allergen.includes(allergen.id)
+      );
+      
+      const mealTypeObjects = mealTypesResponse.data.filter(mealType => 
+        data.mealtype.includes(mealType.id)
+      );
+      
+      const cuisineObjects = cuisinesResponse.data.filter(cuisine => 
+        data.cuisine.includes(cuisine.id)
+      );
+
+      // Prepare data with full objects
+      const mealDataWithObjects = {
+        ...data,
+        allergen: allergenObjects,
+        mealtype: mealTypeObjects,
+        cuisine: cuisineObjects,
+      };
+
+      console.log('Sending meal data with full objects:', JSON.stringify(mealDataWithObjects, null, 2));
+      
+      return makeRequest<Meal>('/api/meals', {
+        method: 'POST',
+        body: JSON.stringify(mealDataWithObjects),
+      });
+    } catch (error) {
+      console.error('Error in meal creation:', error);
+      return {
+        success: false,
+        message: 'Failed to create meal',
+        data: null,
+        error: 'An error occurred during meal creation'
+      };
+    }
   },
   getAll: async (): Promise<ApiResponse<Meal[]>> => {
     return makeRequest<Meal[]>('/api/meals');
@@ -460,6 +486,11 @@ export const mealAPI = {
 export const authAPI = {
   checkAdmin: async (): Promise<ApiResponse<{ is_admin: boolean }>> => {
     return makeRequest<{ is_admin: boolean }>('/api/auth/check-admin');
+  },
+  validateToken: async (): Promise<ApiResponse<{ valid: boolean }>> => {
+    return makeRequest<{ valid: boolean }>('/api/auth/validate', {
+      method: 'POST'
+    });
   },
 };
 

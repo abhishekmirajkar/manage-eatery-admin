@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { authAPI } from "@/lib/api/apiService";
 
 interface User {
   id: string;
@@ -24,6 +25,8 @@ interface AuthContextType {
   user: User | null;
   getAccessToken: () => string | null;
   refreshToken: () => Promise<boolean>;
+  validateToken: () => Promise<boolean>;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,36 +45,70 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<User | null>(null);
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if user is already logged in from localStorage
-    const storedTokens = localStorage.getItem("authTokens");
-    const storedUser = localStorage.getItem("user");
-    
-    if (storedTokens && storedUser) {
-      try {
-        const parsedTokens = JSON.parse(storedTokens);
-        const parsedUser = JSON.parse(storedUser);
-        
-        // Check if token is not expired (with some buffer)
-        const tokenData = JSON.parse(atob(parsedTokens.access_token.split('.')[1]));
-        const currentTime = Date.now() / 1000;
-        
-        if (tokenData.exp > currentTime + 60) { // 60 seconds buffer
+    const initializeAuth = async () => {
+      setIsLoading(true);
+      
+      // Check if user is already logged in from localStorage
+      const storedTokens = localStorage.getItem("authTokens");
+      const storedUser = localStorage.getItem("user");
+      
+      if (storedTokens && storedUser) {
+        try {
+          const parsedTokens = JSON.parse(storedTokens);
+          const parsedUser = JSON.parse(storedUser);
+          
           setTokens(parsedTokens);
           setUser(parsedUser);
-          setIsAuthenticated(true);
-        } else {
-          // Try to refresh token
-          refreshTokenInternal(parsedTokens.refresh_token);
+          
+          // Validate token with server
+          const isValid = await validateTokenInternal(parsedTokens.access_token);
+          
+          if (isValid) {
+            setIsAuthenticated(true);
+          } else {
+            // Try to refresh token
+            const refreshed = await refreshTokenInternal(parsedTokens.refresh_token);
+            if (!refreshed) {
+              logout();
+            }
+          }
+        } catch (error) {
+          console.error("Error parsing stored auth data:", error);
+          logout();
         }
-      } catch (error) {
-        console.error("Error parsing stored auth data:", error);
-        logout();
       }
-    }
+      
+      setIsLoading(false);
+    };
+
+    initializeAuth();
   }, []);
+
+  const validateTokenInternal = async (accessToken: string): Promise<boolean> => {
+    try {
+      // Temporarily set the token for the API call
+      const originalToken = localStorage.getItem("authTokens");
+      localStorage.setItem("authTokens", JSON.stringify({ access_token: accessToken }));
+      
+      const response = await authAPI.validateToken();
+      
+      // Restore original token
+      if (originalToken) {
+        localStorage.setItem("authTokens", originalToken);
+      } else {
+        localStorage.removeItem("authTokens");
+      }
+      
+      return response.success;
+    } catch (error) {
+      console.error("Token validation failed:", error);
+      return false;
+    }
+  };
 
   const refreshTokenInternal = async (refreshTokenValue: string): Promise<boolean> => {
     try {
@@ -159,6 +196,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return refreshTokenInternal(tokens.refresh_token);
   };
 
+  const validateToken = async (): Promise<boolean> => {
+    if (!tokens?.access_token) {
+      return false;
+    }
+    
+    const isValid = await validateTokenInternal(tokens.access_token);
+    
+    if (!isValid) {
+      // Try to refresh token if validation fails
+      const refreshed = await refreshToken();
+      if (!refreshed) {
+        logout();
+        return false;
+      }
+      return true;
+    }
+    
+    return true;
+  };
+
   return (
     <AuthContext.Provider value={{ 
       isAuthenticated, 
@@ -166,7 +223,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logout, 
       user, 
       getAccessToken, 
-      refreshToken 
+      refreshToken,
+      validateToken,
+      isLoading
     }}>
       {children}
     </AuthContext.Provider>

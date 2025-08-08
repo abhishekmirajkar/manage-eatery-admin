@@ -338,14 +338,16 @@ const Meals = () => {
         const createData: MealCreateData = {
           name: formData.name!,
           restaurant_id: formData.restaurant_id!,
-          allergen: formData.allergen!,
-          mealtype: formData.mealtype!,
-          cuisine: formData.cuisine!,
+          allergen: formData.allergen || [],
+          mealtype: formData.mealtype || [],
+          cuisine: formData.cuisine || [],
           food_type: formData.food_type!,
           description: formData.description,
           alcohol: formData.alcohol,
           image: formData.image,
         };
+        
+        console.log('Form data before API call:', JSON.stringify(createData, null, 2));
         
         const response = await mealAPI.create(createData);
         if (response.success && response.data) {

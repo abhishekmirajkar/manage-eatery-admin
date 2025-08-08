@@ -2,7 +2,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/ui/theme-provider";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { DatabaseProvider } from "@/contexts/DatabaseContext";
 
 import DashboardLayout from "@/components/Layout/DashboardLayout";
@@ -23,8 +23,16 @@ import "./App.css";
 
 // Authentication guard component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  // Check if user is authenticated from localStorage
-  const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  if (isLoading) {
+    // Show loading spinner while checking authentication
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
   
   if (!isAuthenticated) {
     // If not authenticated, redirect to login page

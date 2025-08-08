@@ -52,9 +52,9 @@ export interface Meal {
   restaurant?: Restaurant;
   allergen: string[];
   allergens?: Allergen[];
-  mealtype: string;
+  mealtype: string[];
   mealType?: MealType;
-  cuisine: string;
+  cuisine: string[];
   cuisineDetails?: Cuisine;
   alcohol: boolean;
   availability: boolean;
