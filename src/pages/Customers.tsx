@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from "react";
+import { logger } from "@/lib/logger";
 import { DataTable } from "@/components/DataTable/DataTable";
 import { FormModal } from "@/components/DataTable/FormModal";
 import { Customer } from "@/types/models";
@@ -40,7 +41,7 @@ const Customers = () => {
       }
     } catch (error) {
       toast.error("Failed to load customers");
-      console.error("Error loading customers:", error);
+      logger.error("Error loading customers:", error);
     } finally {
       setLoading(false);
     }
@@ -104,7 +105,7 @@ const Customers = () => {
       }
     } catch (error) {
       toast.error("Failed to delete customer");
-      console.error("Error deleting customer:", error);
+      logger.error("Error deleting customer:", error);
     }
   };
 
@@ -164,7 +165,7 @@ const Customers = () => {
       }
     } catch (error) {
       toast.error("An error occurred while saving the customer");
-      console.error("Error saving customer:", error);
+      logger.error("Error saving customer:", error);
     } finally {
       setSubmitting(false);
     }
@@ -203,7 +204,7 @@ const Customers = () => {
       <FormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingCustomer ? "Edit Customer" : "Add New Customer"}
+        title={editingCustomer !== null ? "Edit Customer" : "Add New Customer"}
         onSubmit={handleSubmit}
         isLoading={submitting}
       >

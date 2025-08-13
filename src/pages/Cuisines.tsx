@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from "react";
+import { logger } from "@/lib/logger";
 import { DataTable } from "@/components/DataTable/DataTable";
 import { FormModal } from "@/components/DataTable/FormModal";
 import { Cuisine } from "@/types/models";
@@ -34,7 +35,7 @@ const Cuisines = () => {
       }
     } catch (error) {
       toast.error("Failed to load cuisines");
-      console.error("Error loading cuisines:", error);
+      logger.error("Error loading cuisines:", error);
     } finally {
       setLoading(false);
     }
@@ -71,7 +72,7 @@ const Cuisines = () => {
       }
     } catch (error) {
       toast.error("Failed to delete cuisine");
-      console.error("Error deleting cuisine:", error);
+      logger.error("Error deleting cuisine:", error);
     }
   };
 
@@ -111,7 +112,7 @@ const Cuisines = () => {
       }
     } catch (error) {
       toast.error("An error occurred while saving the cuisine");
-      console.error("Error saving cuisine:", error);
+      logger.error("Error saving cuisine:", error);
     } finally {
       setSubmitting(false);
     }
@@ -146,7 +147,7 @@ const Cuisines = () => {
       <FormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingCuisine ? "Edit Cuisine" : "Add New Cuisine"}
+        title={editingCuisine !== null ? "Edit Cuisine" : "Add New Cuisine"}
         onSubmit={handleSubmit}
         isLoading={submitting}
       >

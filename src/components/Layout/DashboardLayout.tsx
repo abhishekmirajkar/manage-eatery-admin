@@ -70,14 +70,12 @@ const DashboardLayout = () => {
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [adminCheckLoading, setAdminCheckLoading] = useState(true);
 
   // Check admin role via backend API with automatic token refresh
   React.useEffect(() => {
     const checkAdminRole = async () => {
       if (!user) {
         setIsAdmin(false);
-        setAdminCheckLoading(false);
         return;
       }
 
@@ -86,15 +84,9 @@ const DashboardLayout = () => {
         
         if (response.success && response.data) {
           setIsAdmin(response.data.is_admin || false);
-        } else {
-          console.error('Admin check failed:', response.error);
-          setIsAdmin(false);
         }
       } catch (error) {
-        console.error('Error checking admin role:', error);
-        setIsAdmin(false);
-      } finally {
-        setAdminCheckLoading(false);
+        // Silent error handling
       }
     };
 
@@ -210,7 +202,7 @@ const DashboardLayout = () => {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center space-x-2">
-                  <span>{user ? `${user.first_name} ${user.last_name}` : 'User'}</span>
+                  <span>{user ? user.first_name : 'User'}</span>
                   <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>

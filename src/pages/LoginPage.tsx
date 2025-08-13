@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { passwordResetService } from "@/lib/api/passwordResetService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +10,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002';
 
 type ResetStep = 'email' | 'password';
 
@@ -37,7 +37,7 @@ const LoginPage = () => {
         navigate("/dashboard");
       }
     } catch (error) {
-      console.error("Login error:", error);
+      // Error is handled by login method in AuthContext
     } finally {
       setIsLoading(false);
     }
@@ -49,31 +49,16 @@ const LoginPage = () => {
     setIsResetting(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: resetEmail }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        // Handle the response structure: { success: true, data: { token: "...", email: "..." } }
-        if (data.data && data.data.token) {
-          setResetToken(data.data.token);
-          setResetStep('password');
-          toast.success("Email verified! Please enter your new password.");
-        } else {
-          console.error("Token not found in response:", data);
-          toast.error("Invalid response from server - token missing");
-        }
+      const result = await passwordResetService.verifyEmailForReset(resetEmail);
+      
+      if (result.success && result.token) {
+        setResetToken(result.token);
+        setResetStep('password');
+        toast.success("Email verified! Please enter your new password.");
       } else {
-        toast.error(data.error || "User with this email not found");
+        toast.error(result.error || "Failed to verify email");
       }
     } catch (error) {
-      console.error("Email verification error:", error);
       toast.error("Failed to verify email. Please try again.");
     } finally {
       setIsResetting(false);
@@ -100,30 +85,18 @@ const LoginPage = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          token: resetToken,
-          new_password: newPassword 
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      const result = await passwordResetService.resetPassword(resetToken, newPassword);
+      
+      if (result.success) {
         toast.success("Password reset successfully! You can now log in with your new password.");
         setShowResetModal(false);
         resetForm();
         // Pre-fill login form with the email
         setEmail(resetEmail);
       } else {
-        toast.error(data.error || "Failed to reset password");
+        toast.error(result.error || "Failed to reset password");
       }
     } catch (error) {
-      console.error("Password reset error:", error);
       toast.error("Failed to reset password. Please try again.");
     } finally {
       setIsResetting(false);

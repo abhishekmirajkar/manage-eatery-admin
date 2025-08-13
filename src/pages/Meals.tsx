@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from "react";
+import { logger } from "@/lib/logger";
 import { DataTable } from "@/components/DataTable/DataTable";
 import { FormModal } from "@/components/DataTable/FormModal";
-import { Meal, Allergen, Restaurant, MealType, Cuisine } from "@/types/models";
+import { Meal, Allergen, Restaurant, MealType, Cuisine, FoodType, FOOD_TYPE_LABELS } from "@/types/models";
 import { 
   mealAPI, 
   allergenAPI, 
@@ -99,7 +100,7 @@ const Meals = () => {
 
     } catch (error) {
       toast.error("Failed to load data");
-      console.error("Error loading data:", error);
+      logger.error("Error loading data:", error);
     } finally {
       setLoading(false);
     }
@@ -310,7 +311,7 @@ const Meals = () => {
       }
     } catch (error) {
       toast.error("Failed to delete meal");
-      console.error("Error deleting meal:", error);
+      logger.error("Error deleting meal:", error);
     }
   };
 
@@ -347,7 +348,6 @@ const Meals = () => {
           image: formData.image,
         };
         
-        console.log('Form data before API call:', JSON.stringify(createData, null, 2));
         
         const response = await mealAPI.create(createData);
         if (response.success && response.data) {
@@ -360,7 +360,7 @@ const Meals = () => {
       }
     } catch (error) {
       toast.error("An error occurred while saving the meal");
-      console.error("Error saving meal:", error);
+      logger.error("Error saving meal:", error);
     } finally {
       setSubmitting(false);
     }
@@ -447,7 +447,7 @@ const Meals = () => {
       <FormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingMeal ? "Edit Meal" : "Add New Meal"}
+        title={editingMeal !== null ? "Edit Meal" : "Add New Meal"}
         onSubmit={handleSubmit}
         isLoading={submitting}
       >
@@ -501,15 +501,17 @@ const Meals = () => {
             <Label htmlFor="food_type">Food Type</Label>
             <Select
               value={formData.food_type}
-              onValueChange={(value) => setFormData({ ...formData, food_type: value as 'veg' | 'non_veg' | 'vegan' })}
+              onValueChange={(value) => setFormData({ ...formData, food_type: value as FoodType })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select food type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="veg">Vegetarian</SelectItem>
-                <SelectItem value="non_veg">Non-Vegetarian</SelectItem>
-                <SelectItem value="vegan">Vegan</SelectItem>
+                {Object.entries(FOOD_TYPE_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -613,7 +615,7 @@ const Meals = () => {
     </div>
   );
   } catch (error) {
-    console.error("Error rendering meals page:", error);
+    logger.error("Error rendering meals page:", error);
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-red-500">Error loading meals. Please check console for details.</div>

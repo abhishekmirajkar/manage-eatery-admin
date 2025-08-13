@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from "react";
+import { logger } from "@/lib/logger";
 import { DataTable } from "@/components/DataTable/DataTable";
 import { FormModal } from "@/components/DataTable/FormModal";
 import { Restaurant, Address } from "@/types/models";
@@ -57,7 +58,7 @@ const Restaurants = () => {
       }
     } catch (error) {
       toast.error("Failed to load data");
-      console.error("Error loading data:", error);
+      logger.error("Error loading data:", error);
     } finally {
       setLoading(false);
     }
@@ -73,7 +74,7 @@ const Restaurants = () => {
             <div className="font-medium">{restaurant.name || 'Unnamed Restaurant'}</div>
           );
         } catch (error) {
-          console.error("Error rendering restaurant:", restaurant, error);
+          logger.error("Error rendering restaurant name", error);
           return <span className="text-red-500">Restaurant error</span>;
         }
       }
@@ -96,7 +97,7 @@ const Restaurants = () => {
             <span className="text-gray-400 text-sm">No email</span>
           );
         } catch (error) {
-          console.error("Error rendering email:", restaurant, error);
+          logger.error("Error rendering restaurant email", error);
           return <span className="text-red-500">Email error</span>;
         }
       }
@@ -119,7 +120,7 @@ const Restaurants = () => {
             <span className="text-gray-400 text-sm">No phone</span>
           );
         } catch (error) {
-          console.error("Error rendering phone:", restaurant, error);
+          logger.error("Error rendering restaurant phone", error);
           return <span className="text-red-500">Phone error</span>;
         }
       }
@@ -144,7 +145,7 @@ const Restaurants = () => {
             </div>
           );
         } catch (error) {
-          console.error("Error rendering address for restaurant:", restaurant, error);
+          logger.error("Error rendering restaurant address", error);
           return <span className="text-red-500">Address error</span>;
         }
       }
@@ -195,7 +196,7 @@ const Restaurants = () => {
       }
     } catch (error) {
       toast.error("Failed to delete restaurant");
-      console.error("Error deleting restaurant:", error);
+      logger.error("Error deleting restaurant:", error);
     }
   };
 
@@ -239,7 +240,7 @@ const Restaurants = () => {
       }
     } catch (error) {
       toast.error("An error occurred while saving the restaurant");
-      console.error("Error saving restaurant:", error);
+      logger.error("Error saving restaurant:", error);
     } finally {
       setSubmitting(false);
     }
@@ -279,7 +280,7 @@ const Restaurants = () => {
         <FormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingRestaurant ? "Edit Restaurant" : "Add New Restaurant"}
+        title={editingRestaurant !== null ? "Edit Restaurant" : "Add New Restaurant"}
         onSubmit={handleSubmit}
         isLoading={submitting}
       >
@@ -346,7 +347,7 @@ const Restaurants = () => {
     </div>
   );
   } catch (error) {
-    console.error("Error rendering restaurants page:", error);
+    logger.error("Error rendering restaurants page:", error);
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-red-500">Error loading restaurants. Please check console for details.</div>

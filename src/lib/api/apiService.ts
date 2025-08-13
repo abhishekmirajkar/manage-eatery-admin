@@ -1,4 +1,5 @@
 import { Address, Allergen, Cuisine, MealType, Restaurant, Meal } from "@/types/models";
+import { logger } from "@/lib/logger";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002';
 
@@ -43,7 +44,7 @@ const isTokenExpired = (): boolean => {
     const expirationBuffer = 300;
     return payload.exp <= (currentTime + expirationBuffer);
   } catch (error) {
-    console.error("Error checking token expiration:", error);
+    logger.error("Error checking token expiration:", error);
     return true;
   }
 };
@@ -57,7 +58,7 @@ const getAuthToken = (): string | null => {
     const tokens = JSON.parse(storedTokens);
     return tokens.access_token || null;
   } catch (error) {
-    console.error("Error parsing stored tokens:", error);
+    logger.error("Error parsing stored tokens:", error);
     return null;
   }
 };
@@ -87,7 +88,7 @@ const getAuthTokenWithRefresh = async (): Promise<string | null> => {
 
     return tokens.access_token;
   } catch (error) {
-    console.error("Error getting auth token:", error);
+    logger.error("Error getting auth token:", error);
     return null;
   }
 };
@@ -141,7 +142,7 @@ const refreshTokens = async (): Promise<boolean> => {
     }
     return false;
   } catch (error) {
-    console.error('Token refresh error:', error);
+    logger.error('Token refresh error:', error);
     localStorage.removeItem("authTokens");
     localStorage.removeItem("user");
     
@@ -235,7 +236,7 @@ const makeRequest = async <T>(
     // If response already has success/data structure, return as is
     return data;
   } catch (error) {
-    console.error('API request failed:', error);
+    logger.error('API request failed:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred'
@@ -450,14 +451,13 @@ export const mealAPI = {
         cuisine: cuisineObjects,
       };
 
-      console.log('Sending meal data with full objects:', JSON.stringify(mealDataWithObjects, null, 2));
       
       return makeRequest<Meal>('/api/meals', {
         method: 'POST',
         body: JSON.stringify(mealDataWithObjects),
       });
     } catch (error) {
-      console.error('Error in meal creation:', error);
+      logger.error('Error in meal creation:', error);
       return {
         success: false,
         message: 'Failed to create meal',

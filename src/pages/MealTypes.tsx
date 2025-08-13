@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from "react";
+import { logger } from "@/lib/logger";
 import { DataTable } from "@/components/DataTable/DataTable";
 import { FormModal } from "@/components/DataTable/FormModal";
 import { MealType } from "@/types/models";
@@ -36,7 +37,7 @@ const MealTypes = () => {
       }
     } catch (error) {
       toast.error("Failed to load meal types");
-      console.error("Error loading meal types:", error);
+      logger.error("Error loading meal types:", error);
     } finally {
       setLoading(false);
     }
@@ -85,7 +86,7 @@ const MealTypes = () => {
       }
     } catch (error) {
       toast.error("Failed to delete meal type");
-      console.error("Error deleting meal type:", error);
+      logger.error("Error deleting meal type:", error);
     }
   };
 
@@ -126,7 +127,7 @@ const MealTypes = () => {
       }
     } catch (error) {
       toast.error("An error occurred while saving the meal type");
-      console.error("Error saving meal type:", error);
+      logger.error("Error saving meal type:", error);
     } finally {
       setSubmitting(false);
     }
@@ -161,7 +162,7 @@ const MealTypes = () => {
       <FormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingMealType ? "Edit Meal Type" : "Add New Meal Type"}
+        title={editingMealType !== null ? "Edit Meal Type" : "Add New Meal Type"}
         onSubmit={handleSubmit}
         isLoading={submitting}
       >

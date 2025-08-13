@@ -6,6 +6,7 @@ import { Allergen } from "@/types/models";
 import { allergenAPI, AllergenCreateData, extractResponseData } from "@/lib/api/apiService";
 import InputWithLabel from "@/components/ui/input-with-label";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 
 const Allergens = () => {
   const [allergens, setAllergens] = useState<Allergen[]>([]);
@@ -41,7 +42,7 @@ const Allergens = () => {
       }
     } catch (error) {
       toast.error("Failed to load allergens");
-      console.error("Error loading allergens:", error);
+      logger.error("Error loading allergens:", error);
     } finally {
       setLoading(false);
     }
@@ -81,7 +82,7 @@ const Allergens = () => {
       }
     } catch (error) {
       toast.error("Failed to delete allergen");
-      console.error("Error deleting allergen:", error);
+      logger.error("Error deleting allergen:", error);
     }
   };
 
@@ -122,7 +123,7 @@ const Allergens = () => {
       }
     } catch (error) {
       toast.error("An error occurred while saving the allergen");
-      console.error("Error saving allergen:", error);
+      logger.error("Error saving allergen:", error);
     } finally {
       setSubmitting(false);
     }
@@ -157,7 +158,7 @@ const Allergens = () => {
       <FormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingAllergen ? "Edit Allergen" : "Add New Allergen"}
+        title={editingAllergen !== null ? "Edit Allergen" : "Add New Allergen"}
         onSubmit={handleSubmit}
         isLoading={submitting}
       >

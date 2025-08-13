@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { logger } from "@/lib/logger";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,7 +46,6 @@ const MealPlanning = () => {
   const transformMealData = (uploadedData: UploadedMealData[]): MealScheduleEntry[] => {
     return uploadedData.map(item => {
       // Keep the original date string as-is (it's already in YYYY-MM-DD format)
-      console.log(`Processing date: ${item.date}`);
       
       return {
         date: item.date, // Don't modify the date string
@@ -93,7 +93,7 @@ const MealPlanning = () => {
       setMealSchedule(transformedData);
       toast.success(`Successfully loaded ${transformedData.length} meal schedules`);
     } catch (error) {
-      console.error("Error parsing JSON:", error);
+      logger.error("Error parsing JSON:", error);
       toast.error(`Error parsing JSON: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setUploadedFile(null);
     } finally {
@@ -118,16 +118,7 @@ const MealPlanning = () => {
       return;
     }
 
-    console.log("=== SUBMITTING MEAL SCHEDULE ===");
-    console.log("Local timezone:", Intl.DateTimeFormat().resolvedOptions().timeZone);
-    console.log("Number of meals to submit:", mealSchedule.length);
     
-    // Log each meal being submitted
-    mealSchedule.forEach((meal, index) => {
-      console.log(`Meal ${index + 1}: Date "${meal.date}" -> ${meal.meal_1}, ${meal.meal_2}, ${meal.meal_3}, ${meal.meal_4}, ${meal.meal_5}`);
-    });
-
-    console.log("Raw JSON being sent to backend:", JSON.stringify(mealSchedule, null, 2));
 
     setIsSubmitting(true);
     try {
@@ -143,7 +134,7 @@ const MealPlanning = () => {
         throw new Error(response.error || "Failed to schedule meals");
       }
     } catch (error) {
-      console.error("Error submitting meal schedule:", error);
+      logger.error("Error submitting meal schedule:", error);
       toast.error(`Failed to submit meal schedule: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsSubmitting(false);
@@ -165,16 +156,13 @@ const MealPlanning = () => {
 
   // Get compact date display for table cells
   const getCompactDateDisplay = (dateString: string) => {
-    console.log(`Displaying date: ${dateString}`);
     const [year, month, day] = dateString.split('-').map(Number);
     const date = new Date(year, month - 1, day);
-    console.log(`Parsed as: ${date.toString()}, Day: ${date.getDate()}, Month: ${date.getMonth() + 1}, Year: ${date.getFullYear()}`);
     
     const result = {
       monthDay: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       weekday: date.toLocaleDateString('en-US', { weekday: 'short' })
     };
-    console.log(`Display result: ${result.monthDay} ${result.weekday}`);
     return result;
   };
 
@@ -215,7 +203,6 @@ const MealPlanning = () => {
       const lastDay = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0).getDate();
       const endDate = `${selectedYear}-${selectedMonth}-${lastDay.toString().padStart(2, '0')}`;
 
-      console.log(`Loading meals for ${startDate} to ${endDate}`);
       
       const response = await mealScheduleAPI.getMealSchedule(startDate, endDate);
       
@@ -226,7 +213,7 @@ const MealPlanning = () => {
         throw new Error(response.error || "Failed to load scheduled meals");
       }
     } catch (error) {
-      console.error("Error loading scheduled meals:", error);
+      logger.error("Error loading scheduled meals:", error);
       toast.error(`Failed to load scheduled meals: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setScheduledMeals([]);
     } finally {

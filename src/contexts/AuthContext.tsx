@@ -3,31 +3,8 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { authAPI } from "@/lib/api/apiService";
-
-interface User {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  role: string;
-}
-
-interface AuthTokens {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-}
-
-interface AuthContextType {
-  isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
-  user: User | null;
-  getAccessToken: () => string | null;
-  refreshToken: () => Promise<boolean>;
-  validateToken: () => Promise<boolean>;
-  isLoading: boolean;
-}
+import { logger } from "@/lib/logger";
+import { User, AuthTokens, AuthContextType } from "@/types/auth";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -77,7 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
         } catch (error) {
-          console.error("Error parsing stored auth data:", error);
+          logger.error("Error parsing stored auth data:", error);
           logout();
         }
       }
@@ -105,7 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       return response.success;
     } catch (error) {
-      console.error("Token validation failed:", error);
+      logger.error("Token validation failed:", error);
       return false;
     }
   };
@@ -134,7 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logout();
       return false;
     } catch (error) {
-      console.error("Token refresh failed:", error);
+      logger.error("Token refresh failed:", error);
       logout();
       return false;
     }
@@ -169,7 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
     } catch (error) {
-      console.error("Login failed:", error);
+      logger.error("Login failed:", error);
       toast.error("Login failed. Please try again.");
       return false;
     }

@@ -1,4 +1,16 @@
 
+export enum FoodType {
+  VEG = 'veg',
+  NON_VEG = 'non_veg',
+  VEGAN = 'vegan'
+}
+
+export const FOOD_TYPE_LABELS = {
+  [FoodType.VEG]: 'Vegetarian',
+  [FoodType.NON_VEG]: 'Non-Vegetarian',
+  [FoodType.VEGAN]: 'Vegan'
+} as const;
+
 export interface Address {
   id: string;
   street: string;
@@ -61,6 +73,7 @@ export interface Meal {
   name: string;
   description: string;
   image: string;
+  food_type: FoodType;
 }
 
 export interface MealPlanning {

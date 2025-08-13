@@ -1,4 +1,5 @@
 import { Customer } from "@/types/models";
+import { logger } from "@/lib/logger";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002';
 
@@ -48,7 +49,7 @@ class CustomerService {
         const tokens = JSON.parse(storedTokens);
         return tokens.access_token || null;
       } catch (error) {
-        console.error("Error parsing stored tokens:", error);
+        logger.error("Error parsing stored tokens:", error);
         return null;
       }
     }
@@ -95,7 +96,7 @@ class CustomerService {
       window.location.href = "/login";
       return false;
     } catch (error) {
-      console.error("Token refresh failed:", error);
+      logger.error("Token refresh failed:", error);
       localStorage.removeItem("authTokens");
       localStorage.removeItem("user");
       window.location.href = "/login";
@@ -113,7 +114,6 @@ class CustomerService {
       
       // If no token and this isn't a retry, try to refresh first
       if (!token && !isRetry) {
-        console.log('No token available in customerService, attempting refresh...');
         const refreshSuccess = await this.refreshTokens();
         if (refreshSuccess) {
           token = this.getAuthToken();
@@ -158,7 +158,7 @@ class CustomerService {
 
       return data;
     } catch (error) {
-      console.error('API request failed:', error);
+      logger.error('API request failed:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred'
@@ -220,7 +220,7 @@ class CustomerService {
         error: 'Unexpected response format'
       };
     } catch (error) {
-      console.error('Customer creation failed:', error);
+      logger.error('Customer creation failed:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to create customer'

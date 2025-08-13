@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from "react";
+import { logger } from "@/lib/logger";
 import { DataTable } from "@/components/DataTable/DataTable";
 import { FormModal } from "@/components/DataTable/FormModal";
 import { Address } from "@/types/models";
@@ -42,7 +43,7 @@ const Addresses = () => {
       }
     } catch (error) {
       toast.error("Failed to load addresses");
-      console.error("Error loading addresses:", error);
+      logger.error("Error loading addresses:", error);
     } finally {
       setLoading(false);
     }
@@ -105,7 +106,7 @@ const Addresses = () => {
       }
     } catch (error) {
       toast.error("Failed to delete address");
-      console.error("Error deleting address:", error);
+      logger.error("Error deleting address:", error);
     }
   };
 
@@ -153,7 +154,7 @@ const Addresses = () => {
       }
     } catch (error) {
       toast.error("An error occurred while saving the address");
-      console.error("Error saving address:", error);
+      logger.error("Error saving address:", error);
     } finally {
       setSubmitting(false);
     }
@@ -188,7 +189,7 @@ const Addresses = () => {
       <FormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingAddress ? "Edit Address" : "Add New Address"}
+        title={editingAddress !== null ? "Edit Address" : "Add New Address"}
         onSubmit={handleSubmit}
         isLoading={submitting}
       >
