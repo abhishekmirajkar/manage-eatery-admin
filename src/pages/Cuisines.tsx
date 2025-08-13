@@ -1,19 +1,45 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { logger } from "@/lib/logger";
 import { DataTable } from "@/components/DataTable/DataTable";
 import { FormModal } from "@/components/DataTable/FormModal";
 import { Cuisine } from "@/types/models";
-import { mockCuisines } from "@/lib/mockData";
+import { cuisineAPI, CuisineCreateData, extractResponseData } from "@/lib/api/apiService";
 import InputWithLabel from "@/components/ui/input-with-label";
 import { toast } from "sonner";
 
 const Cuisines = () => {
-  const [cuisines, setCuisines] = useState<Cuisine[]>(mockCuisines);
+  const [cuisines, setCuisines] = useState<Cuisine[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCuisine, setEditingCuisine] = useState<Cuisine | null>(null);
-  const [formData, setFormData] = useState<Partial<Cuisine>>({
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [formData, setFormData] = useState<Partial<CuisineCreateData>>({
     name: "",
   });
+
+  // Load cuisines on component mount
+  useEffect(() => {
+    loadCuisines();
+  }, []);
+
+  const loadCuisines = async () => {
+    setLoading(true);
+    try {
+      const response = await cuisineAPI.getAll();
+      if (response.success && response.data) {
+        const cuisineData = extractResponseData<Cuisine[]>(response.data);
+        setCuisines(cuisineData);
+      } else {
+        toast.error(response.error || "Failed to load cuisines");
+      }
+    } catch (error) {
+      toast.error("Failed to load cuisines");
+      logger.error("Error loading cuisines:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const columns = [
     { header: "Name", accessor: "name" },
@@ -35,35 +61,61 @@ const Cuisines = () => {
     setIsModalOpen(true);
   };
 
-  const handleDelete = (cuisine: Cuisine) => {
-    setCuisines(cuisines.filter((c) => c.id !== cuisine.id));
-    toast.success(`Deleted ${cuisine.name}`);
+  const handleDelete = async (cuisine: Cuisine) => {
+    try {
+      const response = await cuisineAPI.delete(cuisine.id);
+      if (response.success) {
+        setCuisines(cuisines.filter((c) => c.id !== cuisine.id));
+        toast.success(`Deleted ${cuisine.name}`);
+      } else {
+        toast.error(response.error || "Failed to delete cuisine");
+      }
+    } catch (error) {
+      toast.error("Failed to delete cuisine");
+      logger.error("Error deleting cuisine:", error);
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
     
-    if (editingCuisine) {
-      // Update existing cuisine
-      setCuisines(
-        cuisines.map((c) =>
-          c.id === editingCuisine.id
-            ? { ...c, ...formData }
-            : c
-        )
-      );
-      toast.success(`Updated ${formData.name}`);
-    } else {
-      // Create new cuisine
-      const newCuisine: Cuisine = {
-        id: `cus${cuisines.length + 1}`,
-        ...formData as Cuisine
-      };
-      setCuisines([...cuisines, newCuisine]);
-      toast.success(`Added ${formData.name}`);
+    try {
+      if (editingCuisine) {
+        // Update existing cuisine
+        const response = await cuisineAPI.update(editingCuisine.id, formData);
+        if (response.success && response.data) {
+          setCuisines(
+            cuisines.map((c) =>
+              c.id === editingCuisine.id ? response.data! : c
+            )
+          );
+          toast.success(`Updated ${formData.name}`);
+          setIsModalOpen(false);
+        } else {
+          toast.error(response.error || "Failed to update cuisine");
+        }
+      } else {
+        // Create new cuisine
+        const createData: CuisineCreateData = {
+          name: formData.name!,
+        };
+        
+        const response = await cuisineAPI.create(createData);
+        if (response.success && response.data) {
+          setCuisines([...cuisines, response.data]);
+          toast.success(`Added ${formData.name}`);
+          setIsModalOpen(false);
+        } else {
+          toast.error(response.error || "Failed to create cuisine");
+        }
+      }
+    } catch (error) {
+      toast.error("An error occurred while saving the cuisine");
+      logger.error("Error saving cuisine:", error);
+    } finally {
+      setSubmitting(false);
     }
-    
-    setIsModalOpen(false);
   };
 
   const handleInputChange = (
@@ -72,6 +124,14 @@ const Cuisines = () => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg">Loading cuisines...</div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -87,8 +147,9 @@ const Cuisines = () => {
       <FormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingCuisine ? "Edit Cuisine" : "Add New Cuisine"}
+        title={editingCuisine !== null ? "Edit Cuisine" : "Add New Cuisine"}
         onSubmit={handleSubmit}
+        isLoading={submitting}
       >
         <div className="grid grid-cols-1 gap-4 py-4">
           <InputWithLabel

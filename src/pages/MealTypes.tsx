@@ -1,21 +1,47 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { logger } from "@/lib/logger";
 import { DataTable } from "@/components/DataTable/DataTable";
 import { FormModal } from "@/components/DataTable/FormModal";
 import { MealType } from "@/types/models";
-import { mockMealTypes } from "@/lib/mockData";
+import { mealTypeAPI, MealTypeCreateData, extractResponseData } from "@/lib/api/apiService";
 import InputWithLabel from "@/components/ui/input-with-label";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const MealTypes = () => {
-  const [mealTypes, setMealTypes] = useState<MealType[]>(mockMealTypes);
+  const [mealTypes, setMealTypes] = useState<MealType[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMealType, setEditingMealType] = useState<MealType | null>(null);
-  const [formData, setFormData] = useState<Partial<MealType>>({
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [formData, setFormData] = useState<Partial<MealTypeCreateData>>({
     name: "",
     image: "",
   });
+
+  // Load meal types on component mount
+  useEffect(() => {
+    loadMealTypes();
+  }, []);
+
+  const loadMealTypes = async () => {
+    setLoading(true);
+    try {
+      const response = await mealTypeAPI.getAll();
+      if (response.success && response.data) {
+        const mealTypeData = extractResponseData<MealType[]>(response.data);
+        setMealTypes(mealTypeData);
+      } else {
+        toast.error(response.error || "Failed to load meal types");
+      }
+    } catch (error) {
+      toast.error("Failed to load meal types");
+      logger.error("Error loading meal types:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const columns = [
     { 
@@ -49,35 +75,62 @@ const MealTypes = () => {
     setIsModalOpen(true);
   };
 
-  const handleDelete = (mealType: MealType) => {
-    setMealTypes(mealTypes.filter((mt) => mt.id !== mealType.id));
-    toast.success(`Deleted ${mealType.name}`);
+  const handleDelete = async (mealType: MealType) => {
+    try {
+      const response = await mealTypeAPI.delete(mealType.id);
+      if (response.success) {
+        setMealTypes(mealTypes.filter((mt) => mt.id !== mealType.id));
+        toast.success(`Deleted ${mealType.name}`);
+      } else {
+        toast.error(response.error || "Failed to delete meal type");
+      }
+    } catch (error) {
+      toast.error("Failed to delete meal type");
+      logger.error("Error deleting meal type:", error);
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
     
-    if (editingMealType) {
-      // Update existing meal type
-      setMealTypes(
-        mealTypes.map((mt) =>
-          mt.id === editingMealType.id
-            ? { ...mt, ...formData }
-            : mt
-        )
-      );
-      toast.success(`Updated ${formData.name}`);
-    } else {
-      // Create new meal type
-      const newMealType: MealType = {
-        id: `mt${mealTypes.length + 1}`,
-        ...formData as MealType
-      };
-      setMealTypes([...mealTypes, newMealType]);
-      toast.success(`Added ${formData.name}`);
+    try {
+      if (editingMealType) {
+        // Update existing meal type
+        const response = await mealTypeAPI.update(editingMealType.id, formData);
+        if (response.success && response.data) {
+          setMealTypes(
+            mealTypes.map((mt) =>
+              mt.id === editingMealType.id ? response.data! : mt
+            )
+          );
+          toast.success(`Updated ${formData.name}`);
+          setIsModalOpen(false);
+        } else {
+          toast.error(response.error || "Failed to update meal type");
+        }
+      } else {
+        // Create new meal type
+        const createData: MealTypeCreateData = {
+          name: formData.name!,
+          image: formData.image,
+        };
+        
+        const response = await mealTypeAPI.create(createData);
+        if (response.success && response.data) {
+          setMealTypes([...mealTypes, response.data]);
+          toast.success(`Added ${formData.name}`);
+          setIsModalOpen(false);
+        } else {
+          toast.error(response.error || "Failed to create meal type");
+        }
+      }
+    } catch (error) {
+      toast.error("An error occurred while saving the meal type");
+      logger.error("Error saving meal type:", error);
+    } finally {
+      setSubmitting(false);
     }
-    
-    setIsModalOpen(false);
   };
 
   const handleInputChange = (
@@ -86,6 +139,14 @@ const MealTypes = () => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg">Loading meal types...</div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -101,8 +162,9 @@ const MealTypes = () => {
       <FormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingMealType ? "Edit Meal Type" : "Add New Meal Type"}
+        title={editingMealType !== null ? "Edit Meal Type" : "Add New Meal Type"}
         onSubmit={handleSubmit}
+        isLoading={submitting}
       >
         <div className="grid grid-cols-1 gap-4 py-4">
           <InputWithLabel
@@ -121,7 +183,6 @@ const MealTypes = () => {
             value={formData.image}
             onChange={handleInputChange}
             placeholder="https://example.com/image.jpg"
-            required
           />
           
           {formData.image && (

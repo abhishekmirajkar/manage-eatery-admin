@@ -1,9 +1,10 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { logger } from "@/lib/logger";
 import { DataTable } from "@/components/DataTable/DataTable";
 import { FormModal } from "@/components/DataTable/FormModal";
-import { Restaurant } from "@/types/models";
-import { getRestaurantsWithAddresses, mockAddresses } from "@/lib/mockData";
+import { Restaurant, Address } from "@/types/models";
+import { restaurantAPI, addressAPI, RestaurantCreateData, extractResponseData } from "@/lib/api/apiService";
 import { Badge } from "@/components/ui/badge";
 import InputWithLabel from "@/components/ui/input-with-label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,10 +13,13 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 const Restaurants = () => {
-  const [restaurants, setRestaurants] = useState<Restaurant[]>(getRestaurantsWithAddresses());
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [addresses, setAddresses] = useState<Address[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRestaurant, setEditingRestaurant] = useState<Restaurant | null>(null);
-  const [formData, setFormData] = useState<Partial<Restaurant>>({
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [formData, setFormData] = useState<Partial<RestaurantCreateData>>({
     name: "",
     email: "",
     phone_number: "",
@@ -23,15 +27,127 @@ const Restaurants = () => {
     is_closed: false,
   });
 
+  // Load data on component mount
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      // Load both restaurants and addresses
+      const [restaurantsResponse, addressesResponse] = await Promise.all([
+        restaurantAPI.getAll(),
+        addressAPI.getAll()
+      ]);
+
+      if (restaurantsResponse.success && restaurantsResponse.data) {
+        // Handle nested data structure using utility function
+        const restaurantData = extractResponseData<Restaurant[]>(restaurantsResponse.data);
+        setRestaurants(restaurantData);
+      } else {
+        toast.error(restaurantsResponse.error || "Failed to load restaurants");
+      }
+
+      if (addressesResponse.success && addressesResponse.data) {
+        // Handle potentially nested data structure using utility function
+        const addressData = extractResponseData<Address[]>(addressesResponse.data);
+        setAddresses(addressData);
+      } else {
+        toast.error(addressesResponse.error || "Failed to load addresses");
+      }
+    } catch (error) {
+      toast.error("Failed to load data");
+      logger.error("Error loading data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const columns = [
-    { header: "Name", accessor: "name" },
-    { header: "Email", accessor: "email" },
-    { header: "Phone", accessor: "phone_number" },
+    { 
+      header: "Restaurant Name", 
+      accessor: "name",
+      cell: (restaurant: Restaurant) => {
+        try {
+          return (
+            <div className="font-medium">{restaurant.name || 'Unnamed Restaurant'}</div>
+          );
+        } catch (error) {
+          logger.error("Error rendering restaurant name", error);
+          return <span className="text-red-500">Restaurant error</span>;
+        }
+      }
+    },
+    { 
+      header: "Email", 
+      accessor: "email",
+      cell: (restaurant: Restaurant) => {
+        try {
+          return restaurant.email ? (
+            <div className="text-sm">
+              <a 
+                href={`mailto:${restaurant.email}`} 
+                className="text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                {restaurant.email}
+              </a>
+            </div>
+          ) : (
+            <span className="text-gray-400 text-sm">No email</span>
+          );
+        } catch (error) {
+          logger.error("Error rendering restaurant email", error);
+          return <span className="text-red-500">Email error</span>;
+        }
+      }
+    },
+    { 
+      header: "Phone Number", 
+      accessor: "phone_number",
+      cell: (restaurant: Restaurant) => {
+        try {
+          return restaurant.phone_number ? (
+            <div className="text-sm">
+              <a 
+                href={`tel:${restaurant.phone_number}`} 
+                className="text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                {restaurant.phone_number}
+              </a>
+            </div>
+          ) : (
+            <span className="text-gray-400 text-sm">No phone</span>
+          );
+        } catch (error) {
+          logger.error("Error rendering restaurant phone", error);
+          return <span className="text-red-500">Phone error</span>;
+        }
+      }
+    },
     { 
       header: "Address", 
       accessor: (restaurant: Restaurant) => {
-        const address = restaurant.address;
-        return address ? `${address.street}, ${address.city}, ${address.state}` : "No address";
+        try {
+          // Find address by address_id since API returns reference, not populated object
+          const address = safeAddresses.find(addr => addr.id === restaurant.address_id);
+          
+          if (!address) {
+            return <span className="text-gray-500">No address found</span>;
+          }
+          
+          return (
+            <div className="text-sm">
+              <div>{address.street || 'No street'}</div>
+              <div className="text-gray-500">
+                {address.city || 'Unknown City'}, {address.state || 'Unknown State'} {address.zip_code || ''}
+              </div>
+            </div>
+          );
+        } catch (error) {
+          logger.error("Error rendering restaurant address", error);
+          return <span className="text-red-500">Address error</span>;
+        }
       }
     },
     { 
@@ -69,36 +185,65 @@ const Restaurants = () => {
     setIsModalOpen(true);
   };
 
-  const handleDelete = (restaurant: Restaurant) => {
-    // In a real app, this would be an API call
-    setRestaurants(restaurants.filter((r) => r.id !== restaurant.id));
-    toast.success(`Deleted ${restaurant.name}`);
+  const handleDelete = async (restaurant: Restaurant) => {
+    try {
+      const response = await restaurantAPI.delete(restaurant.id);
+      if (response.success) {
+        setRestaurants(restaurants.filter((r) => r.id !== restaurant.id));
+        toast.success(`Deleted ${restaurant.name}`);
+      } else {
+        toast.error(response.error || "Failed to delete restaurant");
+      }
+    } catch (error) {
+      toast.error("Failed to delete restaurant");
+      logger.error("Error deleting restaurant:", error);
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
     
-    if (editingRestaurant) {
-      // Update existing restaurant
-      setRestaurants(
-        restaurants.map((r) =>
-          r.id === editingRestaurant.id
-            ? { ...r, ...formData }
-            : r
-        )
-      );
-      toast.success(`Updated ${formData.name}`);
-    } else {
-      // Create new restaurant
-      const newRestaurant: Restaurant = {
-        id: `res${restaurants.length + 1}`,
-        ...formData as Restaurant
-      };
-      setRestaurants([...restaurants, newRestaurant]);
-      toast.success(`Added ${formData.name}`);
+    try {
+      if (editingRestaurant) {
+        // Update existing restaurant
+        const response = await restaurantAPI.update(editingRestaurant.id, formData);
+        if (response.success && response.data) {
+          setRestaurants(
+            restaurants.map((r) =>
+              r.id === editingRestaurant.id ? response.data! : r
+            )
+          );
+          toast.success(`Updated ${formData.name}`);
+          setIsModalOpen(false);
+        } else {
+          toast.error(response.error || "Failed to update restaurant");
+        }
+      } else {
+        // Create new restaurant
+        const createData: RestaurantCreateData = {
+          name: formData.name!,
+          address_id: formData.address_id!,
+          is_closed: formData.is_closed!,
+          phone_number: formData.phone_number,
+          email: formData.email,
+        };
+        
+        const response = await restaurantAPI.create(createData);
+        if (response.success && response.data) {
+          setRestaurants([...restaurants, response.data]);
+          toast.success(`Added ${formData.name}`);
+          setIsModalOpen(false);
+        } else {
+          toast.error(response.error || "Failed to create restaurant");
+        }
+      }
+    } catch (error) {
+      toast.error("An error occurred while saving the restaurant");
+      logger.error("Error saving restaurant:", error);
+    } finally {
+      setSubmitting(false);
     }
-    
-    setIsModalOpen(false);
   };
 
   const handleInputChange = (
@@ -108,22 +253,36 @@ const Restaurants = () => {
     setFormData({ ...formData, [name]: value });
   };
 
-  return (
-    <div>
-      <DataTable
-        data={restaurants}
-        columns={columns}
-        title="Restaurants"
-        onAdd={handleAddNew}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg">Loading restaurants...</div>
+      </div>
+    );
+  }
 
-      <FormModal
+  // Add defensive check for data
+  const safeRestaurants = Array.isArray(restaurants) ? restaurants : [];
+  const safeAddresses = Array.isArray(addresses) ? addresses : [];
+
+  try {
+    return (
+      <div>
+        <DataTable
+          data={safeRestaurants}
+          columns={columns}
+          title="Restaurants"
+          onAdd={handleAddNew}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+
+        <FormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingRestaurant ? "Edit Restaurant" : "Add New Restaurant"}
+        title={editingRestaurant !== null ? "Edit Restaurant" : "Add New Restaurant"}
         onSubmit={handleSubmit}
+        isLoading={submitting}
       >
         <div className="grid grid-cols-1 gap-4 py-4">
           <InputWithLabel
@@ -164,7 +323,7 @@ const Restaurants = () => {
                 <SelectValue placeholder="Select address" />
               </SelectTrigger>
               <SelectContent>
-                {mockAddresses.map((address) => (
+                {addresses.map((address) => (
                   <SelectItem key={address.id} value={address.id}>
                     {address.street}, {address.city}, {address.state}
                   </SelectItem>
@@ -187,6 +346,14 @@ const Restaurants = () => {
       </FormModal>
     </div>
   );
+  } catch (error) {
+    logger.error("Error rendering restaurants page:", error);
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-red-500">Error loading restaurants. Please check console for details.</div>
+      </div>
+    );
+  }
 };
 
 export default Restaurants;

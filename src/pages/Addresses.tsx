@@ -1,35 +1,66 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { logger } from "@/lib/logger";
 import { DataTable } from "@/components/DataTable/DataTable";
 import { FormModal } from "@/components/DataTable/FormModal";
 import { Address } from "@/types/models";
-import { mockAddresses } from "@/lib/mockData";
+import { addressAPI, AddressCreateData, extractResponseData } from "@/lib/api/apiService";
 import InputWithLabel from "@/components/ui/input-with-label";
 import { toast } from "sonner";
 
 const Addresses = () => {
-  const [addresses, setAddresses] = useState<Address[]>(mockAddresses);
+  const [addresses, setAddresses] = useState<Address[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
-  const [formData, setFormData] = useState<Partial<Address>>({
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [formData, setFormData] = useState<Partial<AddressCreateData>>({
     street: "",
     city: "",
     state: "",
-    county: "",
+    country: "",
     zip_code: "",
     latitude: "",
     longitude: "",
     additional_info: "",
+    phone: "",
   });
+
+  // Load addresses on component mount
+  useEffect(() => {
+    loadAddresses();
+  }, []);
+
+  const loadAddresses = async () => {
+    setLoading(true);
+    try {
+      const response = await addressAPI.getAll();
+      if (response.success && response.data) {
+        const addressData = extractResponseData<Address[]>(response.data);
+        setAddresses(addressData);
+      } else {
+        toast.error(response.error || "Failed to load addresses");
+      }
+    } catch (error) {
+      toast.error("Failed to load addresses");
+      logger.error("Error loading addresses:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const columns = [
     { header: "Street", accessor: "street" },
-    { 
-      header: "Location", 
-      accessor: (address: Address) => `${address.city}, ${address.state}` 
-    },
+    { header: "City", accessor: "city" },
+    { header: "State", accessor: "state" },
+    { header: "Country", accessor: "county" },
     { header: "Zip Code", accessor: "zip_code" },
-    { header: "County", accessor: "county" },
+    { 
+      header: "Coordinates", 
+      accessor: (address: Address) => address.latitude && address.longitude ? 
+        `${address.latitude}, ${address.longitude}` : "Not set"
+    },
+    { header: "Additional Info", accessor: "additional_info" },
   ];
 
   const handleAddNew = () => {
@@ -38,11 +69,12 @@ const Addresses = () => {
       street: "",
       city: "",
       state: "",
-      county: "",
+      country: "",
       zip_code: "",
       latitude: "",
       longitude: "",
       additional_info: "",
+      phone: "",
     });
     setIsModalOpen(true);
   };
@@ -53,44 +85,79 @@ const Addresses = () => {
       street: address.street,
       city: address.city,
       state: address.state,
-      county: address.county,
+      country: address.county, // Using county as country for now
       zip_code: address.zip_code,
       latitude: address.latitude,
       longitude: address.longitude,
       additional_info: address.additional_info,
+      phone: "",
     });
     setIsModalOpen(true);
   };
 
-  const handleDelete = (address: Address) => {
-    setAddresses(addresses.filter((a) => a.id !== address.id));
-    toast.success(`Deleted address: ${address.street}`);
+  const handleDelete = async (address: Address) => {
+    try {
+      const response = await addressAPI.delete(address.id);
+      if (response.success) {
+        setAddresses(addresses.filter((a) => a.id !== address.id));
+        toast.success(`Deleted address: ${address.street}`);
+      } else {
+        toast.error(response.error || "Failed to delete address");
+      }
+    } catch (error) {
+      toast.error("Failed to delete address");
+      logger.error("Error deleting address:", error);
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
     
-    if (editingAddress) {
-      // Update existing address
-      setAddresses(
-        addresses.map((a) =>
-          a.id === editingAddress.id
-            ? { ...a, ...formData }
-            : a
-        )
-      );
-      toast.success(`Updated address: ${formData.street}`);
-    } else {
-      // Create new address
-      const newAddress: Address = {
-        id: `addr${addresses.length + 1}`,
-        ...formData as Address
-      };
-      setAddresses([...addresses, newAddress]);
-      toast.success(`Added address: ${formData.street}`);
+    try {
+      if (editingAddress) {
+        // Update existing address
+        const response = await addressAPI.update(editingAddress.id, formData);
+        if (response.success && response.data) {
+          setAddresses(
+            addresses.map((a) =>
+              a.id === editingAddress.id ? response.data! : a
+            )
+          );
+          toast.success(`Updated address: ${formData.street}`);
+          setIsModalOpen(false);
+        } else {
+          toast.error(response.error || "Failed to update address");
+        }
+      } else {
+        // Create new address
+        const createData: AddressCreateData = {
+          street: formData.street!,
+          city: formData.city!,
+          state: formData.state!,
+          country: formData.country!,
+          zip_code: formData.zip_code!,
+          latitude: formData.latitude!,
+          longitude: formData.longitude!,
+          additional_info: formData.additional_info,
+          phone: formData.phone,
+        };
+        
+        const response = await addressAPI.create(createData);
+        if (response.success && response.data) {
+          setAddresses([...addresses, response.data]);
+          toast.success(`Added address: ${formData.street}`);
+          setIsModalOpen(false);
+        } else {
+          toast.error(response.error || "Failed to create address");
+        }
+      }
+    } catch (error) {
+      toast.error("An error occurred while saving the address");
+      logger.error("Error saving address:", error);
+    } finally {
+      setSubmitting(false);
     }
-    
-    setIsModalOpen(false);
   };
 
   const handleInputChange = (
@@ -99,6 +166,14 @@ const Addresses = () => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg">Loading addresses...</div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -114,8 +189,9 @@ const Addresses = () => {
       <FormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingAddress ? "Edit Address" : "Add New Address"}
+        title={editingAddress !== null ? "Edit Address" : "Add New Address"}
         onSubmit={handleSubmit}
+        isLoading={submitting}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
           <div className="md:col-span-2">
@@ -148,12 +224,21 @@ const Addresses = () => {
           />
           
           <InputWithLabel
-            label="County"
-            id="county"
-            name="county"
-            value={formData.county}
+            label="Country"
+            id="country"
+            name="country"
+            value={formData.country}
             onChange={handleInputChange}
             required
+          />
+          
+          <InputWithLabel
+            label="Phone"
+            id="phone"
+            name="phone"
+            value={formData.phone}
+            onChange={handleInputChange}
+            placeholder="Optional phone number"
           />
           
           <InputWithLabel
@@ -171,6 +256,7 @@ const Addresses = () => {
             name="latitude"
             value={formData.latitude}
             onChange={handleInputChange}
+            required
           />
           
           <InputWithLabel
@@ -179,6 +265,7 @@ const Addresses = () => {
             name="longitude"
             value={formData.longitude}
             onChange={handleInputChange}
+            required
           />
           
           <div className="md:col-span-2">

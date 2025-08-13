@@ -28,8 +28,11 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { authAPI } from "@/lib/api/apiService";
 import { useTheme } from "@/components/ui/theme-provider";
 import DatabaseStatus from "@/components/DatabaseStatus";
+
+// Admin check now uses authAPI with automatic token refresh
 
 interface NavLink {
   name: string;
@@ -62,10 +65,30 @@ const NavItem: React.FC<NavItemProps> = ({ link, sidebarOpen }) => {
 };
 
 const DashboardLayout = () => {
-  const { logout, user } = useAuth();
+  const { logout, user, getAccessToken } = useAuth();
   const { theme, setTheme } = useTheme();
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Check admin role via backend API with automatic token refresh
+  React.useEffect(() => {
+    const checkAdminRole = async () => {
+      if (!user) return;
+
+      try {
+        const response = await authAPI.checkAdmin();
+        
+        if (response.success && response.data) {
+          setIsAdmin(response.data.is_admin || false);
+        }
+      } catch (error) {
+        // Silent error handling
+      }
+    };
+
+    checkAdminRole();
+  }, [user]);
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
@@ -76,7 +99,8 @@ const DashboardLayout = () => {
     { name: "Addresses", path: "/dashboard/addresses", icon: MapPin },
     { name: "Allergens", path: "/dashboard/allergens", icon: AlertOctagon },
     { name: "Cuisines", path: "/dashboard/cuisines", icon: Coffee },
-    { name: "Customers", path: "/dashboard/customers", icon: Users },
+    // Only add Customers tab if backend confirms user is admin
+    ...(isAdmin ? [{ name: "Customers", path: "/dashboard/customers", icon: Users }] : []),
     { name: "Meals", path: "/dashboard/meals", icon: UtensilsCrossed },
     { name: "Meal Planning", path: "/dashboard/meal-planning", icon: CalendarDays },
     { name: "Meal Types", path: "/dashboard/meal-types", icon: Coffee },
@@ -175,7 +199,7 @@ const DashboardLayout = () => {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center space-x-2">
-                  <span>{user?.username}</span>
+                  <span>{user ? user.first_name : 'User'}</span>
                   <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
