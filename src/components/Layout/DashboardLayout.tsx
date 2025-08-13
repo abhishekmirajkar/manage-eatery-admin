@@ -74,10 +74,7 @@ const DashboardLayout = () => {
   // Check admin role via backend API with automatic token refresh
   React.useEffect(() => {
     const checkAdminRole = async () => {
-      if (!user) {
-        setIsAdmin(false);
-        return;
-      }
+      if (!user) return;
 
       try {
         const response = await authAPI.checkAdmin();
